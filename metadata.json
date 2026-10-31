@@ -1,0 +1,6 @@
+{
+  "name": "墨痕武道：水墨火柴人 (Ink Martial: Stickman Roguelike)",
+  "description": "中国古典水墨风格仿3D火柴人动作肉鸽游戏，支持双屏触控手势识别与书法招式释放，具备流畅骨骼动画与丰富技能词条组合。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

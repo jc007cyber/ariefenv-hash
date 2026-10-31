@@ -1,0 +1,33 @@
+{
+  "name": "墨痕武道：水墨火柴人",
+  "short_name": "墨痕武道",
+  "description": "中国古典水墨风格仿3D火柴人动作肉鸽游戏，支持双屏触控手势识别与书法招式释放。",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#efe8d8",
+  "theme_color": "#a32c22",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/* 移动端触控体验：去点按灰色高亮、禁橡皮筋回弹（刘海屏安全区由 HUD 内 env() 适配） */
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+@layer utilities {
+  .font-calligraphy {
+    font-family: 'Ma Shan Zheng', cursive, 'Noto Serif SC', serif;
+  }
+  .font-ink-serif {
+    font-family: 'Noto Serif SC', serif;
+  }
+}
+
+/* Custom scrollbars and ink style effects */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(120, 100, 70, 0.15);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 100, 70, 0.35);
+  border-radius: 2px;
+}
