@@ -171,6 +171,11 @@ export default function App() {
     };
   }, []);
 
+  // 遮挡战场的弹窗打开时先暂停；关闭后由玩家主动继续，避免突然恢复受伤。
+  useEffect(() => {
+    engineRef.current?.setInputBlocked(showManual || showAffixDrawer || showSaveManager);
+  }, [showManual, showAffixDrawer, showSaveManager]);
+
   // 波次横幅自动消退
   useEffect(() => {
     if (!banner) return;
@@ -237,10 +242,10 @@ export default function App() {
     engine.setGameMode(mode); // 先设模式再 resetGame：resetGame 内 startWave(1) 依赖 gameMode 生成阵次
     engine.resetGame();
     engine.setDifficulty(d);
-    engine.markRunStarted();
     setDifficulty(d);
     setGameMode(mode);
     applyDifficultyHp(d);
+    engine.markRunStarted();
 
     setShield(0);
     setShieldMax(0);
@@ -256,8 +261,8 @@ export default function App() {
     const engine = engineRef.current;
     engine.resetGame();
     engine.setDifficulty(difficulty); // resetGame 会重建 player，难度同步重设（gameMode 保留原局模式）
-    engine.markRunStarted();
     applyDifficultyHp(difficulty);
+    engine.markRunStarted();
     setActiveAffixes([]);
     setBossInfo(null);
     setIsPaused(false);
@@ -290,8 +295,12 @@ export default function App() {
 
   const handleBackToTitle = () => {
     if (!engineRef.current) return;
-    engineRef.current.isPaused = true;
-    engineRef.current.resetGame();
+    const engine = engineRef.current;
+    if (engine.hasStartedRun && !engine.runEnded) {
+      saveRunSnapshot(engine.exportSnapshot());
+    }
+    engine.resetGame();
+    engine.stop(); // 标题不继续模拟战斗，也不再触发后台存档
     setIsPaused(false);
     setBossInfo(null);
     // 重新读取快照（不主动清——玩家暂停存下的「续战第N折」应能在标题认领）

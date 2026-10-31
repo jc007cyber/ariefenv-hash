@@ -494,7 +494,7 @@ export class GameEngine {
     if (this.isRunning) return;
     this.isRunning = true;
     this.lastTime = performance.now();
-    this.runStartTime = performance.now();
+    // resetGame / restoreFromSnapshot 已设置本局起点，启动渲染不能清掉续战时长。
     sound.startAmbientBgm();
     this.loop(this.lastTime);
   }
@@ -525,7 +525,8 @@ export class GameEngine {
 
   /** 暂停/继续（ESC 或按钮），战斗中才可暂停 */
   public togglePause(): boolean {
-    if (this.runEnded) return this.isPaused;
+    if (this.inputBlocked && this.isPaused) return true;
+    if (this.runEnded || !this.hasStartedRun) return this.isPaused;
     // 词条三选一弹窗挂起时禁止 ESC 翻动暂停态：否则弹窗底下战斗照跑，
     // 玩家看不见敌意却照常掉血（隐性状态机漏洞，与无尽入口死机同源）
     if (this.affixPickPending) return this.isPaused;
@@ -542,6 +543,20 @@ export class GameEngine {
     this.renderDirty = true;
     this.callbacks.onPauseChange(this.isPaused);
     return this.isPaused;
+  }
+
+  private inputBlocked = false;
+
+  /** 操作被系统或弹窗中断时只暂停，不在重新获得焦点时自动恢复。 */
+  public pauseForInputLoss() {
+    this.keys = {};
+    this.resetTouches();
+    if (this.hasStartedRun && !this.runEnded && !this.isPaused) this.setPaused(true);
+  }
+
+  public setInputBlocked(blocked: boolean) {
+    this.inputBlocked = blocked;
+    if (blocked) this.pauseForInputLoss();
   }
 
   public setPaused(paused: boolean) {
@@ -804,6 +819,8 @@ export class GameEngine {
   }
 
   public resetGame() {
+    this.hasStartedRun = false; // 标题态和新局配置阶段不能覆盖未完成存档
+    this.resetTouches();
     this.suppressAutoSave = true; // resetGame 内的 startWave(1) 不落盘（防覆盖玩家续战存档点）
     this.player = this.createInitialPlayer();
     this.enemies = [];
@@ -1477,6 +1494,7 @@ export class GameEngine {
   // --- CONTROLS & EVENT BINDINGS ---
   private setupEvents() {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (this.inputBlocked) return;
       this.keys[e.key.toLowerCase()] = true;
 
       // ESC 暂停/继续
@@ -1620,25 +1638,21 @@ export class GameEngine {
     };
 
     const onPointerCancel = (e: PointerEvent) => {
-      onPointerUp(e);
-    };
-
-    const onWindowBlur = () => {
-      this.resetTouches();
-      // 战斗中失焦自动暂停，防止回来时已被围殴
-      if (this.isRunning && this.hasStartedRun && !this.isPaused && !this.runEnded) {
-        this.togglePause();
+      // 取消不是正常松手：不能把系统中断误识别为跳跃或收笔攻击。
+      if (e.pointerId === this.movePointerId || e.pointerId === this.drawPointerId) {
+        this.pauseForInputLoss();
       }
     };
+
+    const onWindowBlur = () => this.pauseForInputLoss();
+    const onPageHide = () => this.pauseForInputLoss();
+    const onContextMenu = () => this.pauseForInputLoss();
 
     // 移动端切后台（visibilitychange 比 blur 更可靠，iOS Safari 切后台常不触发 blur）：
     // 隐藏时自动暂停 + 释放触点；回前台时重置时间基准并唤醒音频（防大帧跳变与 AudioContext 挂起）
     const onVisibilityChange = () => {
       if (document.hidden) {
-        this.resetTouches();
-        if (this.isRunning && this.hasStartedRun && !this.isPaused && !this.runEnded) {
-          this.togglePause();
-        }
+        this.pauseForInputLoss();
       } else {
         this.lastTime = performance.now();
         sound.unlock();
@@ -1650,6 +1664,8 @@ export class GameEngine {
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerCancel);
     window.addEventListener('blur', onWindowBlur);
+    window.addEventListener('pagehide', onPageHide);
+    this.canvas.addEventListener('contextmenu', onContextMenu);
     document.addEventListener('visibilitychange', onVisibilityChange);
 
     this.eventCleanupFns.push(() => {
@@ -1658,6 +1674,8 @@ export class GameEngine {
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerCancel);
       window.removeEventListener('blur', onWindowBlur);
+      window.removeEventListener('pagehide', onPageHide);
+      this.canvas.removeEventListener('contextmenu', onContextMenu);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     });
   }
@@ -1668,6 +1686,8 @@ export class GameEngine {
   public markRunStarted() {
     this.hasStartedRun = true;
     sound.unlock();
+    // App 完成模式、难度与初始血量设置后，立即创建首个恢复点。
+    this.callbacks.onAutoSave?.(this.exportSnapshot());
   }
 
   public resetTouches() {
